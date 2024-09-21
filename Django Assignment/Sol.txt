@@ -1,0 +1,100 @@
+Topic: Django Signals
+
+1.By default, Django signals are executed synchronously. This means the signal handlers are called 
+within the same process flow and are blocking.
+
+//Input
+@receiver(post_save, sender=User)
+def user_saved_handler(sender, instance, **kwargs):
+    print("Signal handler started")
+    time.sleep(5)  # Simulate long running task
+    print("Signal handler finished")
+
+# Usage in Django shell or during model save
+# Shell
+from django.contrib.auth.models import User
+user = User(username="testuser")
+user.save()
+print("User saved")
+
+//Output
+Signal handler started
+Signal handler finished
+User saved
+
+In this example, we see that the signal handler runs synchronously. The print("User saved") 
+statement is only executed after the signal handler completes its execution, 
+which confirms synchronous behavior.
+
+2.Yes, by default, Django signals run in the same thread as the caller. You can verify this by 
+checking the thread identifiers within both the caller and the signal handler.
+
+//Input
+@receiver(post_save, sender=User)
+def user_saved_handler(sender, instance, **kwargs):
+    print(f"Signal handler thread: {threading.current_thread().name}")
+
+# Usage in Django shell or during model save
+# Shell
+import threading
+from django.contrib.auth.models import User
+print(f"Caller thread: {threading.current_thread().name}")
+user = User(username="testuser")
+user.save()
+
+//Output
+Caller thread: MainThread
+Signal handler thread: MainThread
+
+Both the caller and signal handler run in the MainThread, 
+which confirms that signals are executed in the same thread as the caller.
+
+3.Yes, by default, Django signals (e.g., post_save, pre_save) run within the same database transaction 
+as the caller. If a transaction fails and rolls back, the signal’s side effects are also rolled back.
+
+//Input
+@receiver(post_save, sender=User)
+def user_saved_handler(sender, instance, **kwargs):
+    print(f"User saved in signal handler: {instance.username}")
+
+# Usage in Django shell
+from django.db import transaction
+from django.contrib.auth.models import User
+
+try:
+    with transaction.atomic():
+        user = User(username="testuser")
+        user.save()
+        raise Exception("Rolling back transaction")
+except Exception as e:
+    print("Transaction rolled back")
+
+//Output
+User saved in signal handler: testuser
+Transaction rolled back
+
+Although the signal is emitted and runs, the transaction is rolled back, and no user is actually 
+saved to the database, proving that signals run within the same database transaction as the caller 
+by default.
+
+
+Topic: Custom Classes in Python
+
+//Input
+class Rectangle:
+    def __init__(self, length: int, width: int):
+        self.length = length
+        self.width = width
+
+    def __iter__(self):
+        yield {'length': self.length}
+        yield {'width': self.width}
+
+# Example:
+rectangle = Rectangle(5, 10)
+for dimension in rectangle:
+    print(dimension)
+
+//Output
+{'length': 5}
+{'width': 10}
